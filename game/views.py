@@ -74,21 +74,49 @@ def visit_point(request, point_id):
 
 
 def graph(request):
-    if not request.user.is_authenticated or not request.user.is_staff:
-        return HttpResponse("You must be an admin to view this page.")
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return HttpResponse("You must be a super admin to view this page.")
     return TemplateResponse(request, 'game/graph.html', {})
 
 
-# --- random code XD
+# --- random code XD --- lol should be secured, but whatever...
 @require_GET
 def graph_json(request):
     nodes = []
     edges = []
+    # načti uzly a hrany jako dříve
     for p in GraphPoint.objects.all():
-        nodes.append({'id': p.identifier, 'label': p.default_name or p.identifier, 'x': float(p.x), 'y': float(p.y)})
+        nodes.append({
+            'id': p.identifier,
+            'label': p.default_name or p.identifier,
+            'x': float(p.x),
+            'y': float(p.y),
+            # visits budou doplněny níže
+        })
         for q in p.next_points.all():
             edges.append({'from': p.identifier, 'to': q.identifier})
+
+    # map id -> node dict pro pohodlné doplnění visits
+    node_map = {n['id']: n for n in nodes}
+
+    # vyber návštěvy (můžeš omezit množství pokud jich je moc)
+    visits_qs = PointVisit.objects.select_related('user', 'point').order_by('-visit_time')
+    for v in visits_qs:
+        if v.type != PointVisit.Type.SUCCESS:
+            continue
+        pid = v.point.identifier
+        if pid not in node_map:
+            continue
+        node_map[pid].setdefault('visits', [])
+        node_map[pid]['visits'].append({
+            'user': {'id': v.user.id, 'username': v.user.username},
+            'visit_time': v.visit_time.isoformat(),
+            'type': int(v.type),
+            'message': v.message or ''
+        })
+
     return JsonResponse({'nodes': nodes, 'edges': edges})
+
 
 @require_POST
 def graph_save(request):

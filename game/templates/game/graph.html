@@ -21,7 +21,7 @@
   <span class="hint">Double‑click: vytvořit uzel · Click-drag: táhnout · Klik 2x: spojit (klik na uzel → klik na cílový uzel)</span>
 </div>
 
-<script>
+<script defer>
 /* Simple editable graph canvas that persists node positions to a Django backend.
    Usage:
    - Double-click on an empty area: vytvoří nový uzel (vyzve na identifikátor)
@@ -62,6 +62,7 @@ function draw(){
     ctx.beginPath(); ctx.fillStyle = (selected && selected.id === n.id) ? '#ffd' : '#fff'; ctx.strokeStyle = '#2774a6'; ctx.lineWidth = 2; ctx.ellipse(n.x,n.y,NODE_R,NODE_R,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
     // label
     ctx.fillStyle = '#123'; ctx.font = '13px system-ui,Segoe UI,Roboto'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(n.label||n.id, n.x, n.y);
+    drawVisitsUnderNode(n);
   }
 }
 
@@ -159,6 +160,143 @@ async function saveToServer(){
     alert('Uloženo.');
   }catch(err){ alert('Chyba při ukládání: '+err.message + ' (nezapomeň mít CSRF cookie a přihlášení pokud je vyžadováno)'); }
 }
+
+function stringToColor(str){
+  // deterministická HSL barva podle jména
+  let hash = 0;
+  for (let i=0;i<str.length;i++){ hash = ((hash<<5)-hash) + str.charCodeAt(i); hash |= 0; }
+  const h = Math.abs(hash) % 360;
+  const s = 60 + (Math.abs(hash) % 20); // s 60-80
+  const l = 45; // konstantní světlost
+  return `hsl(${h} ${s}% ${l}%)`;
+}
+
+// --- parsování ISO času do epoch ms ---
+function parseTime(t){ return t ? new Date(t).getTime() : 0; }
+
+// --- počítá pro každého uživatele jeho poslední (nejnovější) návštěvu napříč všemi uzly ---
+function computeUserLastVisitMap(allNodes){
+  const map = new Map(); // username -> {time, nodeId}
+  for(const n of allNodes){
+    const visits = n.visits || [];
+    for(const v of visits){
+      if (v.type !== 1) continue; // jen SUCCESS
+      const uname = v.user.username;
+      const t = parseTime(v.visit_time);
+      const prev = map.get(uname);
+      if(!prev || t > prev.time) map.set(uname, {time: t, nodeId: n.id});
+    }
+  }
+  return map;
+}
+
+// --- vykreslení teček pod uzlem ---
+function drawVisitsUnderNode(node){
+  const visits = (node.visits || []).filter(v=> v.type === 1); // SUCCESS only
+  if(visits.length === 0) return;
+  // z každého uživatele vezmeme pouze nejnovější návštěvu k tomuto uzlu
+  const byUser = new Map();
+  for(const v of visits){
+    const u = v.user.username;
+    const t = parseTime(v.visit_time);
+    const prev = byUser.get(u);
+    if(!prev || t > prev.time) byUser.set(u, {time: t, visit: v});
+  }
+  // převést na pole se seřazením podle času (starší vlevo)
+  const arr = Array.from(byUser.values()).sort((a,b)=> a.time - b.time);
+
+  // normalizace opacity v rozsahu 0.25..1.0 podle relativity v rámci tohoto uzlu
+  const times = arr.map(x => x.time);
+  const maxT = Math.max(...times);
+  const minT = Math.min(...times);
+  const span = Math.max(1, maxT - minT);
+
+  // umístění: vykreslíme tečky vodorovně pod uzlem, centrované
+  const spacing = 12;
+  const dotBase = 6;
+  const totalWidth = arr.length * spacing;
+  let startX = node.x - totalWidth/2 + spacing/2;
+  const y = node.y + NODE_R + 12;
+
+    /*
+        Spočítat celkový počet návštěv, které každý hráč provedl napříč všemi uzly.
+        Výsledek: { username: count }
+    */
+    const totalVisitCounts = {};
+    for (const n of nodes) {
+        const vlist = (n.visits || []).filter(v => v.type === 1); // SUCCESS only
+        for (const v of vlist) {
+            const uname = v.user.username;
+            totalVisitCounts[uname] = (totalVisitCounts[uname] || 0) + 1;
+        }
+    }
+
+    console.log(totalVisitCounts)
+    let copy_of_totalVisitCounts = JSON.parse(JSON.stringify(totalVisitCounts));
+    Object.keys(copy_of_totalVisitCounts).forEach(k => copy_of_totalVisitCounts[k] = 1);
+console.log(copy_of_totalVisitCounts)
+
+  for(let i=0;i<arr.length;i++){
+    const u = arr[i];
+    const username = u.visit.user.username;
+    const totalCount = totalVisitCounts[username] || 1;
+    const alpha = 1//0.1 + (0.9 / Math.max(1, totalCount - 1)) * copy_of_totalVisitCounts[username];
+    copy_of_totalVisitCounts[username]++;
+    const color = stringToColor(username);
+
+    // zjistíme, jestli je tahle návštěva poslední návštěvou uživatele (globálně)
+    const last = userLastVisitMap.get(username);
+    const isUserLastHere = last && last.nodeId === node.id && last.time === u.time;
+
+    const cx = startX + i*spacing;
+    const r = isUserLastHere ? dotBase * 1.6 : dotBase;
+
+    // plná kružnice
+    ctx.beginPath();
+    ctx.arc(cx, y, r, 0, Math.PI*2);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = alpha;
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+
+    // pokud je to uživatelova poslední návštěva, přidej zvýraznění (obvod)
+    if(isUserLastHere){
+      ctx.beginPath();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+      ctx.arc(cx, y, r + 2, 0, Math.PI*2);
+      ctx.stroke();
+        ctx.font = '11px system-ui,Segoe UI,Roboto';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = '#333';
+        const dateStr = new Date(u.time).toLocaleString('cs-CZ', {hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit'});
+        ctx.fillText(dateStr, cx, y + r + 4);
+    }
+
+    // malý tooltip při hover: (můžeš doplnit později)
+  }
+}
+
+let userLastVisitMap = new Map();
+
+async function loadFromServer(){
+  try{
+    const res = await fetch('/graph/json/');
+    if(!res.ok) throw new Error('Network');
+    const data = await res.json();
+    // nodes mají nyní pole visits (máme stejné id/label/x/y jako dříve)
+    nodes = (data.nodes || []).map(n=>({
+      id: n.id, label: n.label||n.id, x: parseFloat(n.x)||0, y: parseFloat(n.y)||0, visits: n.visits || []
+    }));
+    edges = (data.edges||[]).map(e=>({from:e.from, to:e.to}));
+
+    // spočítej poslední návštěvu pro každého uživatele (globálně)
+    userLastVisitMap = computeUserLastVisitMap(nodes);
+    selected = null; draw();
+  }catch(err){ alert('Chyba při načítání: ' + err.message); }
+}
+
 
 // initial draw
 draw();
