@@ -4,6 +4,10 @@ from django.http import HttpResponse
 from django.shortcuts import redirect
 import math # lol really needed
 from .utils import *
+import json
+from django.http import JsonResponse, HttpResponseBadRequest
+from django.views.decorators.http import require_POST, require_GET
+from django.db import transaction
 
 
 
@@ -73,3 +77,52 @@ def graph(request):
     if not request.user.is_authenticated or not request.user.is_staff:
         return HttpResponse("You must be an admin to view this page.")
     return TemplateResponse(request, 'game/graph.html', {})
+
+
+# --- random code XD
+@require_GET
+def graph_json(request):
+    nodes = []
+    edges = []
+    for p in GraphPoint.objects.all():
+        nodes.append({'id': p.identifier, 'label': p.default_name or p.identifier, 'x': float(p.x), 'y': float(p.y)})
+        for q in p.next_points.all():
+            edges.append({'from': p.identifier, 'to': q.identifier})
+    return JsonResponse({'nodes': nodes, 'edges': edges})
+
+@require_POST
+def graph_save(request):
+    try:
+        payload = json.loads(request.body.decode('utf-8'))
+    except Exception:
+        return HttpResponseBadRequest('Invalid JSON')
+    nodes = payload.get('nodes', [])
+    edges = payload.get('edges', [])
+    # save inside transaction
+    with transaction.atomic():
+        # create or update nodes
+        instances = {}
+        for n in nodes:
+            print("aaaa")
+            ident = n.get('id')
+            if not ident: continue
+            obj, created = GraphPoint.objects.get_or_create(
+                identifier=ident,
+                game=Game.objects.first()
+            )
+            obj.default_name = n.get('label') or ident
+            obj.x = float(n.get('x') or 0)
+            obj.y = float(n.get('y') or 0)
+            obj.save()
+            instances[ident] = obj
+        # clear all next_points to set edges exactly as given
+        # (alternatively: be incremental)
+        GraphPoint.objects.update()  # noop but ensures model imported
+        for obj in instances.values():
+            obj.next_points.clear()
+        # add edges
+        for e in edges:
+            f = e.get('from'); t = e.get('to')
+            if f in instances and t in instances:
+                instances[f].next_points.add(instances[t])
+    return JsonResponse({'status': 'ok'})
