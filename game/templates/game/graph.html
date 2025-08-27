@@ -231,10 +231,10 @@ function drawVisitsUnderNode(node){
         }
     }
 
-    console.log(totalVisitCounts)
     let copy_of_totalVisitCounts = JSON.parse(JSON.stringify(totalVisitCounts));
     Object.keys(copy_of_totalVisitCounts).forEach(k => copy_of_totalVisitCounts[k] = 1);
-console.log(copy_of_totalVisitCounts)
+    // hmm does not work... 
+// console.log(copy_of_totalVisitCounts)
 
   for(let i=0;i<arr.length;i++){
     const u = arr[i];

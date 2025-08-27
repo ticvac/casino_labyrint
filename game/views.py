@@ -131,7 +131,6 @@ def graph_save(request):
         # create or update nodes
         instances = {}
         for n in nodes:
-            print("aaaa")
             ident = n.get('id')
             if not ident: continue
             obj, created = GraphPoint.objects.get_or_create(
