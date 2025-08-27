@@ -1,0 +1,37 @@
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'game/css/master.css' %}">
+</head>
+<body>
+    {% block content %}
+    <!-- Content will be injected here -->
+    <h1>Casino Labyrint - {{ balance }}</h1>
+    <div class="visits">
+        {% for visit in visits %}
+            <div class="visit">
+                <div class="info">
+                    <div class="name">{{ visit.point.default_name }}</div>
+                    <div class="time">{{ visit.visit_time|date:"H:i:s (d.m)" }}</div>
+                </div>
+                <div class="message {% if visit.type == 2 %}broke-rule{% endif %}">
+                    {% if visit.type == 1 %}
+                        {{ visit.point.default_message }}
+                    {% elif visit.type == 2 %}
+                        {{ visit.message }}
+                    {% endif %}
+                </div>
+                {% if visit.type == 1 %}
+                    <div class="balance">Balance after: <span class="balance-amount">{{ visit.transaction.balance_after }}</span></div>
+                {% endif %}
+            </div>
+        {% empty %}
+            <div class="visit">You have not visited any points yet.</div>
+        {% endfor %}
+    </div>
+    {% endblock %}
+</body>
+</html>
