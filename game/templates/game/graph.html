@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Graph Canvas — interaktivní graf</title>
+  <style>
+    html,body{height:100%;margin:0}
+    #graphCanvas{display:block;background:linear-gradient(#e8f5ff,#fff);width:100vw;height:100vh}
+    .controls{position:fixed;left:12px;top:12px;background:rgba(255,255,255,0.9);padding:8px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,0.08);font-family:system-ui,Segoe UI,Roboto,Arial}
+    .controls button{margin:4px}
+  </style>
+</head>
+<body>
+<canvas id="graphCanvas"></canvas>
+<div class="controls">
+  <button id="relayout">Přepočítat rozložení</button>
+  <button id="reset">Reset pozic</button>
+  <label>Iterací: <input id="iters" type="number" value="500" style="width:70px"></label>
+</div>
+
+<script>
+// canvas + základní kreslení a interakce
+const canvas = document.getElementById('graphCanvas');
+const ctx = canvas.getContext('2d');
+function resize(){canvas.width = window.innerWidth; canvas.height = window.innerHeight}
+window.addEventListener('resize', resize); resize();
+
+// Basic settings (lze ladit)
+const NODE_RADIUS = 18;
+const REPULSION_STRENGTH = 80000;    // větší = uzly se více odpuzují
+const ATTRACTION_STRENGTH = 0.06;    // větší = hrany silněji přitahují
+const DAMPING = 0.85;                // tlumení rychlosti
+
+// data source: pokusíme se načíst z Django endpointu, jinak použijeme demo data
+const DATA_URL = '/graph/json/'; // upravte pokud potřebujete jinou cestu
+
+let graph = {nodes:[], edges:[]};
+
+const sampleData = {
+  nodes: [
+    {id:'A', label:'Start'}, {id:'B', label:'B'}, {id:'C', label:'C'}, {id:'D', label:'D'},
+    {id:'E', label:'E'}, {id:'F', label:'F'}, {id:'G', label:'G'}, {id:'H', label:'H'}
+  ],
+  edges: [
+    {from:'A',to:'B'},{from:'A',to:'C'},{from:'B',to:'D'},{from:'C',to:'D'},{from:'D',to:'E'},{from:'E',to:'F'},{from:'C',to:'G'},{from:'G',to:'H'}
+  ]
+};
+
+// node map and physics fields
+function prepareGraph(data){
+  const map = new Map();
+  data.nodes.forEach(n=>{
+    const node = Object.assign({}, n);
+    node.x = Math.random()*canvas.width;
+    node.y = Math.random()*canvas.height;
+    node.vx = 0; node.vy = 0; node.fx = null; node.fy = null; // fx/fy = fixed by drag
+    map.set(node.id, node);
+  });
+  const edges = data.edges.map(e=>({from: e.from, to: e.to}));
+  return {map, edges, nodes: Array.from(map.values())};
+}
+
+let state = null;
+
+async function loadGraph(){
+  try{
+    const res = await fetch(DATA_URL);
+    if(!res.ok) throw new Error('network');
+    const data = await res.json();
+    graph = data;
+  }catch(e){
+    console.warn('Nepodařilo se načíst data z', DATA_URL, '— použití demo dat.');
+    graph = sampleData;
+  }
+  state = prepareGraph(graph);
+}
+
+// force-directed layout (jednoduchá implementace)
+function simulate(iterations=300){
+  if(!state) return;
+  const nodes = state.nodes;
+  const edges = state.edges;
+  let temp = Math.max(canvas.width, canvas.height)/10;
+  for(let k=0;k<iterations;k++){
+    // repulsion
+    for(let i=0;i<nodes.length;i++){
+      const a = nodes[i];
+      for(let j=i+1;j<nodes.length;j++){
+        const b = nodes[j];
+        let dx = a.x - b.x;
+        let dy = a.y - b.y;
+        let dist2 = dx*dx + dy*dy + 0.01;
+        let dist = Math.sqrt(dist2);
+        let force = REPULSION_STRENGTH / dist2;
+        // normalize
+        a.vx += (dx/dist) * force;
+        a.vy += (dy/dist) * force;
+        b.vx -= (dx/dist) * force;
+        b.vy -= (dy/dist) * force;
+      }
+    }
+    // attraction (edges)
+    for(const e of edges){
+      const a = state.map.get(e.from);
+      const b = state.map.get(e.to);
+      if(!a||!b) continue;
+      let dx = b.x - a.x;
+      let dy = b.y - a.y;
+      let dist = Math.sqrt(dx*dx + dy*dy) + 0.01;
+      // Hooke's law style
+      let force = ATTRACTION_STRENGTH * (dist);
+      let fx = (dx/dist) * force;
+      let fy = (dy/dist) * force;
+      a.vx += fx; a.vy += fy;
+      b.vx -= fx; b.vy -= fy;
+    }
+    // integrate
+    for(const n of nodes){
+      if(n.fx !== null){ n.x = n.fx; n.y = n.fy; n.vx = n.vy = 0; continue }
+      // damping
+      n.vx *= DAMPING; n.vy *= DAMPING;
+      n.x += n.vx * 0.01; n.y += n.vy * 0.01;
+      // bounds
+      n.x = Math.max(NODE_RADIUS, Math.min(canvas.width - NODE_RADIUS, n.x));
+      n.y = Math.max(NODE_RADIUS, Math.min(canvas.height - NODE_RADIUS, n.y));
+    }
+    // cool
+    temp *= 0.995;
+  }
+}
+
+// helper to draw curved edges to reduce visual overlaps
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // background subtle grid
+  ctx.save();
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.restore();
+
+  // edges
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(40,40,60,0.5)';
+  for(const e of state.edges){
+    const a = state.map.get(e.from); const b = state.map.get(e.to);
+    if(!a||!b) continue;
+    // compute perpendicular offset for nicer curves
+    const midx = (a.x + b.x)/2; const midy = (a.y + b.y)/2;
+    const dx = b.x - a.x; const dy = b.y - a.y;
+    const len = Math.sqrt(dx*dx+dy*dy)+0.01;
+    const nx = -dy/len; const ny = dx/len; // normal vector
+    // offset magnitude based on distance and small randomness per edge
+    const offset = Math.min(80, Math.max(8, 0.06 * len));
+    const cx = midx + nx * offset;
+    const cy = midy + ny * offset;
+
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.quadraticCurveTo(cx, cy, b.x, b.y);
+    ctx.stroke();
+    // arrow
+    drawArrowAlongCurve(a, {x:cx,y:cy}, b);
+  }
+
+  // nodes
+  for(const n of state.nodes){
+    // shadow
+    ctx.beginPath();
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    ctx.ellipse(n.x+2, n.y+4, NODE_RADIUS+6, NODE_RADIUS+6, 0,0,Math.PI*2);
+    ctx.fill();
+
+    // node circle
+    ctx.beginPath();
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = '#2b6ea3';
+    ctx.lineWidth = 2;
+    ctx.ellipse(n.x, n.y, NODE_RADIUS, NODE_RADIUS, 0,0,Math.PI*2);
+    ctx.fill(); ctx.stroke();
+
+    // label
+    ctx.fillStyle = '#15202b';
+    ctx.font = '14px system-ui,Segoe UI,Roboto';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(n.label || n.id, n.x, n.y);
+  }
+}
+
+function drawArrowAlongCurve(a, c, b){
+  // sample t near 0.7 to position arrowhead
+  const t = 0.72;
+  const x = (1-t)*(1-t)*a.x + 2*(1-t)*t*c.x + t*t*b.x;
+  const y = (1-t)*(1-t)*a.y + 2*(1-t)*t*c.y + t*t*b.y;
+  // tangent
+  const tx = 2*(1-t)*(c.x - a.x) + 2*t*(b.x - c.x);
+  const ty = 2*(1-t)*(c.y - a.y) + 2*t*(b.y - c.y);
+  const ang = Math.atan2(ty, tx);
+  // draw triangle
+  const size = 6;
+  ctx.save();
+  ctx.translate(x,y); ctx.rotate(ang);
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-size, size/2); ctx.lineTo(-size, -size/2); ctx.closePath();
+  ctx.fillStyle = 'rgba(40,40,60,0.6)'; ctx.fill();
+  ctx.restore();
+}
+
+// interactions: dragging nodes
+let dragging = null; let dragOffset = {x:0,y:0};
+canvas.addEventListener('pointerdown', (ev)=>{
+  const pos = getPointerPos(ev);
+  const hit = findNodeAt(pos);
+  if(hit){
+    dragging = hit;
+    dragging.fx = dragging.x; dragging.fy = dragging.y;
+    dragOffset.x = pos.x - hit.x; dragOffset.y = pos.y - hit.y;
+    canvas.setPointerCapture(ev.pointerId);
+  }
+});
+canvas.addEventListener('pointermove', (ev)=>{
+  if(!dragging) return;
+  const pos = getPointerPos(ev);
+  dragging.fx = pos.x - dragOffset.x; dragging.fy = pos.y - dragOffset.y;
+  dragging.x = dragging.fx; dragging.y = dragging.fy;
+  draw();
+});
+canvas.addEventListener('pointerup', (ev)=>{
+  if(!dragging) return;
+  dragging.fx = null; dragging.fy = null; dragging = null;
+});
+
+function getPointerPos(ev){
+  const rect = canvas.getBoundingClientRect();
+  return {x: ev.clientX - rect.left, y: ev.clientY - rect.top};
+}
+function findNodeAt(pos){
+  for(let i=state.nodes.length-1;i>=0;i--){
+    const n = state.nodes[i];
+    const dx = pos.x - n.x, dy = pos.y - n.y;
+    if(dx*dx + dy*dy <= (NODE_RADIUS+6)*(NODE_RADIUS+6)) return n;
+  }
+  return null;
+}
+
+// public helpers
+async function computeAndRender(iters = 500){
+  if(!state) return;
+  simulate(iters);
+  draw();
+}
+
+function resetPositions(){
+  for(const n of state.nodes){ n.x = Math.random()*canvas.width; n.y = Math.random()*canvas.height; n.vx = n.vy = 0; n.fx = n.fy = null }
+}
+
+// wire buttons
+document.getElementById('relayout').addEventListener('click', ()=>{
+  const iters = parseInt(document.getElementById('iters').value) || 400; simulate(iters); draw();
+});
+document.getElementById('reset').addEventListener('click', ()=>{ resetPositions(); simulate(200); draw(); });
+
+// boot
+(async function(){
+  await loadGraph();
+  // initial layout
+  simulate(parseInt(document.getElementById('iters').value) || 500);
+  draw();
+})();
+
+</script>
+
+<!--
+Django endpoint (do views.py) — vložte toto do svého Django projektu a nastavte URL.
+
+from django.http import JsonResponse
+from .models import GraphPoint
+
+def graph_json(request):
+    nodes = []
+    edges = []
+    for p in GraphPoint.objects.all():
+        nodes.append({
+            'id': p.identifier,
+            'label': p.default_name or p.identifier,
+        })
+        for q in p.next_points.all():
+            edges.append({'from': p.identifier, 'to': q.identifier})
+    return JsonResponse({'nodes': nodes, 'edges': edges})
+
+# urls.py
+# path('graph/json/', views.graph_json, name='graph-json')
+
+Notes:
+- Endpoint musí být na stejné origině, nebo povolte CORS.
+- Node identifiers musí být unikátní.
+- Pokud máte velký graf (desítky až stovky uzlů), uvažujte o přesunutí layoutu na server nebo použití knihovny (d3-force, dagre, cytoscape).
+-->
+
+</body>
+</html>

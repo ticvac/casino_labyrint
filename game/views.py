@@ -67,3 +67,9 @@ def visit_point(request, point_id):
     Transaction.objects.create(user=user, amount=value, visit=visit, balance_after=balance_after)
 
     return redirect('index')
+
+
+def graph(request):
+    if not request.user.is_authenticated or not request.user.is_staff:
+        return HttpResponse("You must be an admin to view this page.")
+    return TemplateResponse(request, 'game/graph.html', {})

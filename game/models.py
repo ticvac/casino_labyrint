@@ -8,6 +8,8 @@ class GraphPoint(models.Model):
     default_name = models.CharField(max_length=255, blank=True, null=True)
     default_message = models.TextField(blank=True, null=True)
     eval_string = models.TextField()
+    x = models.FloatField(default=0)
+    y = models.FloatField(default=0)
 
     def __str__(self):
         return self.identifier
