@@ -8,8 +8,31 @@ import json
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.views.decorators.http import require_POST, require_GET
 from django.db import transaction
+from django.contrib.auth import authenticate, login, logout
 
 
+def login_or_register(request):
+    logout(request)
+    args = {}
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+        # check if user exists
+        if User.objects.filter(username=username).exists():
+            # try login using password
+            user = User.objects.get(username=username)
+            if user.check_password(password):
+                login(request, user)
+                return redirect('index')
+            else:
+                args["login_error"] = "Invalid password"
+        else:
+            user = User(username=username)
+            user.set_password(password)
+            user.save()
+            login(request, user)
+            return redirect('index')
+    return TemplateResponse(request, 'game/login_or_register.html', args)
 
 def index(request):
     args = {}
@@ -18,7 +41,7 @@ def index(request):
     if user.is_authenticated:
         args['visits'] = PointVisit.objects.filter(user=user)
     else:
-        return HttpResponse("You must be logged in to view this page.")
+        return redirect('login_or_register')
     # balance calculation
     transactions = user.transactions.all()
     if transactions:
@@ -31,7 +54,7 @@ def index(request):
 
 def visit_point(request, point_id):
     if not request.user.is_authenticated:
-        return HttpResponse("You must be logged in to visit a point.")
+        return redirect('login_or_register')
     user = request.user
 
     try:
