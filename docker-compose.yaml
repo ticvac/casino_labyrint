@@ -1,0 +1,16 @@
+services:
+  web:
+    build: .
+    # Spustíme migrace a collectstatic před spuštěním gunicornu
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             exec gunicorn main.wsgi:application --bind 0.0.0.0:3000 --workers 3"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/app                        # kód z hosta (vývoj)
+      - ./db.sqlite3:/app/db.sqlite3   # persistovaný SQLite soubor
+      - ./static:/app/staticfiles      # staticfiles (STATIC_ROOT = /app/staticfiles)
+    env_file: .env
+    restart: unless-stopped
