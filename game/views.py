@@ -73,13 +73,49 @@ def visit_point(request, point_id):
         if point not in previous_visit.point.next_points.all():
             add_message_on_unreachable_point(user, point)
             return redirect('index')
+    else:
+        previous_visit = None
+    
+    if previous_visit is None: # first visit
+        visit = PointVisit.objects.create(
+            point=point,
+            user=user,
+            type=PointVisit.Type.SUCCESS,
+            message="Vítejte v Casinu!"
+        )
+        Transaction.objects.create(user=user, amount=0, visit=visit, balance_after=0)
+        return redirect('index')
 
+    # get order of my point
+    # THIS IS SHIT AND SHOULD NOT BE DONE UNDER ANY CIRCUMSTANCES
+    possible_previous_paths = list(previous_visit.point.next_points.all())
+    if point not in possible_previous_paths:
+        return HttpResponse("Něco se pokazilo. Volej orgy XD")
+    print(possible_previous_paths)
+    # calculating message and eval
+    if possible_previous_paths[0] == point:
+        print("Path 1")
+        eval_string = previous_visit.point.eval_string_1
+        message = previous_visit.point.message_1
+    elif possible_previous_paths[1] == point:
+        print("Path 2")
+        eval_string = previous_visit.point.eval_string_2
+        message = previous_visit.point.message_2
+    elif possible_previous_paths[2] == point:
+        print("Path 3")
+        eval_string = previous_visit.point.eval_string_3
+        message = previous_visit.point.message_3
+    else:
+        return HttpResponse("Něco se pokazilo, hodně. Volej orgy XD")
+    message = previous_visit.point.default_name + " -> " + message
+    
 
     # Create a visit record
     visit = PointVisit.objects.create(
         point=point,
         user=user,
         type=PointVisit.Type.SUCCESS,
+        message=message
     )
     # Calculate balance
     transactions = user.transactions.all()
@@ -87,7 +123,7 @@ def visit_point(request, point_id):
     for tx in transactions:
         balance += tx.amount
     # new diff
-    string_to_eval = point.eval_string.replace("x", str(balance))
+    string_to_eval = eval_string.replace("x", str(balance))
     value = eval(string_to_eval)
     balance_after = float(balance) + float(value)
     # Create a transaction record
