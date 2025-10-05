@@ -56,3 +56,12 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.amount} at {self.visit.visit_time}"
+
+
+# hot fix
+class ReachedZero(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reached_zero')
+    time = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} reached zero at {self.time}"

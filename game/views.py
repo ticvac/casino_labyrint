@@ -3,7 +3,7 @@ from .models import *
 from django.http import HttpResponse
 from django.shortcuts import redirect
 import math # lol really needed
-import random
+import random # same here
 from .utils import *
 import json
 from django.http import JsonResponse, HttpResponseBadRequest
@@ -78,13 +78,14 @@ def visit_point(request, point_id):
         previous_visit = None
     
     if previous_visit is None: # first visit
+        init_money = 1000
         visit = PointVisit.objects.create(
             point=point,
             user=user,
             type=PointVisit.Type.SUCCESS,
             message="Vítejte v Casinu!"
         )
-        Transaction.objects.create(user=user, amount=0, visit=visit, balance_after=0)
+        Transaction.objects.create(user=user, amount=init_money, visit=visit, balance_after=init_money)
         return redirect('index')
 
     # get order of my point
@@ -126,7 +127,11 @@ def visit_point(request, point_id):
     # new diff
     string_to_eval = eval_string.replace("x", str(balance))
     value = eval(string_to_eval)
-    balance_after = float(balance) + float(value)
+    balance_after = max(0, float(balance) + float(value))
+    if balance_after == 0:
+        ReachedZero.objects.get_or_create(user=user)
+        visit.message += " (Dosáhl jsi nuly v peněžence! - Kontaktuj orgy pro další instrukce.)"
+        visit.save()
     # Create a transaction record
     Transaction.objects.create(user=user, amount=value, visit=visit, balance_after=balance_after)
 
