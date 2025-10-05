@@ -3,6 +3,7 @@ from .models import *
 from django.http import HttpResponse
 from django.shortcuts import redirect
 import math # lol really needed
+import random
 from .utils import *
 import json
 from django.http import JsonResponse, HttpResponseBadRequest
