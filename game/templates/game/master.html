@@ -25,6 +25,7 @@
                 </div>
                 {% if visit.type == 1 %}
                     <div class="balance">Balance after: <span class="balance-amount">{{ visit.transaction.balance_after }}</span></div>
+                    <div class="balance">Difference: <span class="balance-amount">{{ visit.transaction.amount }}</span></div>
                 {% endif %}
             </div>
         {% empty %}
