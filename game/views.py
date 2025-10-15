@@ -83,7 +83,7 @@ def visit_point(request, point_id):
             point=point,
             user=user,
             type=PointVisit.Type.SUCCESS,
-            message="Vítejte v Casinu!"
+            message="Vítejte v Casinu!" + point.get_str_message()
         )
         Transaction.objects.create(user=user, amount=init_money, visit=visit, balance_after=init_money)
         return redirect('index')
