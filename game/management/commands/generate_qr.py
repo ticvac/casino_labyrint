@@ -22,9 +22,15 @@ class Command(BaseCommand):
         qr_img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
 
         # Font settings (default PIL font if no TTF available)
-        try:
-            font = ImageFont.truetype("arial.ttf", 30)  # You can replace with another font
-        except:
+        font_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../static/game/fonts/font.ttf"))
+        if os.path.exists(font_path):
+            try:
+                font = ImageFont.truetype(font_path, 15)
+            except Exception as e:
+                print(f"Error loading custom font: {e}. Using default font.")
+                font = ImageFont.load_default()
+        else:
+            print(f"Custom font not found at {font_path}, using default font.")
             font = ImageFont.load_default()
 
         # Measure text size
@@ -40,7 +46,7 @@ class Command(BaseCommand):
         # Draw text centered under QR
         draw = ImageDraw.Draw(new_img)
         text_x = (new_img.width - text_width) // 2
-        text_y = qr_img.height + 10
+        text_y = qr_img.height - 20
         draw.text((text_x, text_y), text, fill="black", font=font)
 
         # Save result
