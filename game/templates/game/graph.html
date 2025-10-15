@@ -159,7 +159,7 @@ canvas.addEventListener('pointermove', (ev)=>{
 canvas.addEventListener('pointerup', (ev)=>{ if(dragging){ dragging = null; } });
 
 // UI buttons
-document.getElementById('clear').addEventListener('click', ()=>{ if(confirm('Smazat všechny uzly a hrany?')){edges=[]; selected=null; draw(); } });
+document.getElementById('clear').addEventListener('click', ()=>{ if(confirm('Smazat všechny hrany?')){edges=[]; selected=null; draw(); } });
 document.getElementById('load').addEventListener('click', loadFromServer);
 document.getElementById('save').addEventListener('click', saveToServer);
 
