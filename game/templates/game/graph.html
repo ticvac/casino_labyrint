@@ -18,7 +18,7 @@
   <button id="load">Načíst</button>
   <button id="save">Uložit</button>
   <button id="clear">Vyčistit</button>
-  <span class="hint">Double‑click: vytvořit uzel · Click-drag: táhnout · Klik 2x: spojit (klik na uzel → klik na cílový uzel)</span>
+  <span class="hint">Double-click: vytvořit uzel · Click-drag: táhnout · Klik 2x: spojit (klik na uzel → klik na cílový uzel)</span>
 </div>
 
 <script defer>
@@ -26,7 +26,7 @@
    Usage:
    - Double-click on an empty area: vytvoří nový uzel (vyzve na identifikátor)
    - Drag node: přesune ho
-   - Click a node once (select), then click jiný uzel: vytvoří hranu from->to
+   - Click a node once (select), then click jiný uzel: vytvoří hranu from->to (toggle/remap behavior implemented)
    - Save: POST /graph/save/ JSON {nodes:[{id,label,x,y}], edges:[{from,to}]}
    - Load: GET  /graph/json/  expected {nodes:[...], edges:[...]}
 */
@@ -37,7 +37,7 @@ function resize(){canvas.width = window.innerWidth; canvas.height = window.inner
 window.addEventListener('resize', resize); resize();
 
 const NODE_R = 20;
-let nodes = []; // {id,label,x,y}
+let nodes = []; // {id,label,x,y, visits?}
 let edges = []; // {from,to}
 
 let dragging = null; let dragOffset = {x:0,y:0};
@@ -58,8 +58,16 @@ function draw(){
   for(const n of nodes){
     // shadow
     ctx.beginPath(); ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.ellipse(n.x+3,n.y+5,NODE_R+6,NODE_R+6,0,0,Math.PI*2); ctx.fill();
-    // circle
-    ctx.beginPath(); ctx.fillStyle = (selected && selected.id === n.id) ? '#ffd' : '#fff'; ctx.strokeStyle = '#2774a6'; ctx.lineWidth = 2; ctx.ellipse(n.x,n.y,NODE_R,NODE_R,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+
+    // determine out-degree (počet hran jdoucích z tohoto uzlu)
+    const outDegree = edges.reduce((c, e) => c + (e.from === n.id ? 1 : 0), 0);
+
+    // circle:
+    // - pokud je vybraný -> vždy žlutý (zachovat původní chování)
+    // - jinak pokud má přesně 3 hrany vycházející z uzlu -> zelený
+    const nodeFill = (selected && selected.id === n.id) ? '#ffd' : ((outDegree === 3) ? '#2ecc40' : '#fff');
+
+    ctx.beginPath(); ctx.fillStyle = nodeFill; ctx.strokeStyle = '#2774a6'; ctx.lineWidth = 2; ctx.ellipse(n.x,n.y,NODE_R,NODE_R,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
     // label
     ctx.fillStyle = '#123'; ctx.font = '13px system-ui,Segoe UI,Roboto'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(n.label||n.id, n.x, n.y);
     drawVisitsUnderNode(n);
@@ -81,6 +89,15 @@ function nodeAt(pos){ return nodes.find(n=>{const dx=pos.x-n.x, dy=pos.y-n.y; re
 
 function getPointerPos(ev){ const r = canvas.getBoundingClientRect(); return {x: ev.clientX - r.left, y: ev.clientY - r.top}; }
 
+// --- helper pro hrany ---
+function hasEdge(from, to){
+  return edges.some(e => e.from === from && e.to === to);
+}
+function removeEdge(from, to){
+  const idx = edges.findIndex(e => e.from === from && e.to === to);
+  if(idx !== -1) edges.splice(idx, 1);
+}
+
 canvas.addEventListener('dblclick', (ev)=>{
   const pos = getPointerPos(ev);
   // check if on node
@@ -100,10 +117,20 @@ canvas.addEventListener('pointerdown', (ev)=>{
     // start dragging
     dragging = n; dragOffset.x = pos.x - n.x; dragOffset.y = pos.y - n.y;
     canvas.setPointerCapture(ev.pointerId);
-    // selection/click: if there's already selected node and it's different -> create edge
+    // selection/click: if there's already selected node and it's different -> create/toggle/replace edge
     if(selected && selected.id !== n.id){
-      // create edge from selected -> n
-      edges.push({from:selected.id, to:n.id});
+      const from = selected.id, to = n.id;
+      if(hasEdge(from, to)){
+        // pokud existuje stejná hrana, smažeme ji (toggle off)
+        removeEdge(from, to);
+      } else if(hasEdge(to, from)){
+        // pokud existuje opačná orientace, smažeme ji a přidáme novou (přepneme směr)
+        removeEdge(to, from);
+        edges.push({from, to});
+      } else {
+        // žádná existující hrana -> přidáme novou
+        edges.push({from, to});
+      }
       selected = null; draw();
       return;
     }
@@ -134,7 +161,7 @@ async function loadFromServer(){
     const res = await fetch('/graph/json/');
     if(!res.ok) throw new Error('Network');
     const data = await res.json();
-    nodes = (data.nodes||[]).map(n=>({id:n.id, label:n.label||n.id, x: parseFloat(n.x)||0, y: parseFloat(n.y)||0}));
+    nodes = (data.nodes||[]).map(n=>({id:n.id, label:n.label||n.id, x: parseFloat(n.x)||0, y: parseFloat(n.y)||0, visits: n.visits || []}));
     edges = (data.edges||[]).map(e=>({from:e.from, to:e.to}));
     selected = null; draw();
   }catch(err){ alert('Chyba při načítání: ' + err.message); }
