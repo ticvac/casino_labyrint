@@ -25,7 +25,7 @@ class Command(BaseCommand):
         font_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../static/game/fonts/font.ttf"))
         if os.path.exists(font_path):
             try:
-                font = ImageFont.truetype(font_path, 15)
+                font = ImageFont.truetype(font_path, 20)
             except Exception as e:
                 print(f"Error loading custom font: {e}. Using default font.")
                 font = ImageFont.load_default()
@@ -70,5 +70,5 @@ class Command(BaseCommand):
         for point in GraphPoint.objects.all():
             url = server_url + point.identifier
             output_file = os.path.join(qr_folder, f"{point.identifier}.png")
-            self.generate_qr_with_text(url, point.identifier, output_file)
+            self.generate_qr_with_text(url, point.default_name, output_file)
         print("QR code generation completed.")
