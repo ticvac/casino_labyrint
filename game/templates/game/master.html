@@ -21,7 +21,7 @@
                     <div class="time">{{ visit.visit_time|date:"H:i:s (d.m)" }}</div>
                 </div>
                 <div class="message {% if visit.type == 2 %}broke-rule{% endif %}">
-                    {{ visit.message }}
+                    {{ visit.message|safe }}
                 </div>
                 {% if visit.type == 1 %}
                     <div class="balance">Balance after: <span class="balance-amount">{{ visit.transaction.balance_after }}</span></div>

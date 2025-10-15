@@ -111,6 +111,8 @@ def visit_point(request, point_id):
         return HttpResponse("Něco se pokazilo, hodně. Volej orgy XD")
     message = previous_visit.point.default_name + " -> " + message
     
+    # add point message and options to message
+    message += "<br><br>" + point.get_str_message()
 
     # Create a visit record
     visit = PointVisit.objects.create(
@@ -130,7 +132,7 @@ def visit_point(request, point_id):
     balance_after = max(0, float(balance) + float(value))
     if balance_after == 0:
         ReachedZero.objects.get_or_create(user=user)
-        visit.message += " (Dosáhl jsi nuly v peněžence! - Kontaktuj orgy pro další instrukce.)"
+        visit.message += "<br>(Dosáhl jsi nuly v peněžence! - Kontaktuj orgy pro další instrukce.)"
         visit.save()
     # Create a transaction record
     Transaction.objects.create(user=user, amount=value, visit=visit, balance_after=balance_after)

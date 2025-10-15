@@ -23,8 +23,27 @@ class GraphPoint(models.Model):
     y = models.FloatField(default=0)
     game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name='graph_points')
 
+    # random ass go
+    welcome_message = models.TextField(default="", blank=True)
+    opt_1_message = models.TextField(default="", blank=True)
+    opt_2_message = models.TextField(default="", blank=True)
+    opt_3_message = models.TextField(default="", blank=True)
+
     def __str__(self):
         return str(self.id) + " - " + self.identifier
+
+    def get_str_message(self):
+        m = "<br><b>"
+        m += self.welcome_message + "</b>"
+        point_points = self.next_points.all()
+        if len(point_points) > 0:
+            m += "<br>Možnosti:"
+            m += f"<br>1. {self.opt_1_message} => {point_points[0].default_name}"
+        if len(point_points) > 1:
+            m += f"<br>2. {self.opt_2_message} => {point_points[1].default_name}"
+        if len(point_points) > 2:
+            m += f"<br>3. {self.opt_3_message} => {point_points[2].default_name}"
+        return m
 
 
 class PointVisit(models.Model):
