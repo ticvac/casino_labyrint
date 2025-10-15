@@ -65,7 +65,14 @@ function draw(){
     // circle:
     // - pokud je vybraný -> vždy žlutý (zachovat původní chování)
     // - jinak pokud má přesně 3 hrany vycházející z uzlu -> zelený
-    const nodeFill = (selected && selected.id === n.id) ? '#ffd' : ((outDegree === 3) ? '#2ecc40' : '#fff');
+    let nodeFill = (selected && selected.id === n.id)
+      ? '#ffd'
+      : (outDegree === 3)
+      ? '#2ecc40'
+      : (outDegree > 3)
+        ? '#ff4d4d'
+        : '#fff';
+    
 
     ctx.beginPath(); ctx.fillStyle = nodeFill; ctx.strokeStyle = '#2774a6'; ctx.lineWidth = 2; ctx.ellipse(n.x,n.y,NODE_R,NODE_R,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
     // label
