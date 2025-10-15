@@ -33,16 +33,16 @@ class GraphPoint(models.Model):
         return str(self.id) + " - " + self.identifier
 
     def get_str_message(self):
-        m = "<br><b>"
+        m = "<br><br>  <b>"
         m += self.welcome_message + "</b>"
         point_points = self.next_points.all()
         if len(point_points) > 0:
-            m += "<br>Možnosti:"
-            m += f"<br>1. {self.opt_1_message} => {point_points[0].default_name}"
+            m += "<br><br>Možnosti:"
+            m += f"<br><br>1. {self.opt_1_message} => <b>{point_points[0].default_name}</b>"
         if len(point_points) > 1:
-            m += f"<br>2. {self.opt_2_message} => {point_points[1].default_name}"
+            m += f"<br><br>2. {self.opt_2_message} => <b>{point_points[1].default_name}</b>"
         if len(point_points) > 2:
-            m += f"<br>3. {self.opt_3_message} => {point_points[2].default_name}"
+            m += f"<br><br>3. {self.opt_3_message} => <b>{point_points[2].default_name}</b>"
         return m
 
 
