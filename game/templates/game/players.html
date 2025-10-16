@@ -1,0 +1,15 @@
+{% extends 'game/master.html' %}
+
+
+{% block content %}
+<h1>Nový</h1>
+{% for u in novy %}
+    <p style="padding-left: 1em;">{{ u.username }} - {{ u.total_money }}</p>
+{% endfor %}
+
+
+<h1>Starší 12h</h1>
+{% for u in stari %}
+    <p style="padding-left: 1em;">{{ u.username }} - {{ u.total_money }}</p>
+{% endfor %}
+{% endblock %}

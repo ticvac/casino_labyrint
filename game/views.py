@@ -10,6 +10,8 @@ from django.http import JsonResponse, HttpResponseBadRequest
 from django.views.decorators.http import require_POST, require_GET
 from django.db import transaction
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import User
+from django.utils import timezone
 
 
 def login_or_register(request):
@@ -144,6 +146,19 @@ def graph(request):
     if not request.user.is_authenticated or not request.user.is_superuser:
         return HttpResponse("You must be a super admin to view this page.")
     return TemplateResponse(request, 'game/graph.html', {})
+
+
+def players(request):
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return HttpResponse("You must be a super admin to view this page.")
+
+    novy = User.objects.filter(date_joined__gte=timezone.now()-timezone.timedelta(hours=12))
+    stari = User.objects.filter(date_joined__lt=timezone.now()-timezone.timedelta(hours=12))
+    for n in novy:
+        n.total_money = Transaction.objects.filter(user=n).first().balance_after if Transaction.objects.filter(user=n).exists() else 0
+    for s in stari:
+        s.total_money = Transaction.objects.filter(user=s).first().balance_after if Transaction.objects.filter(user=s).exists() else 0
+    return TemplateResponse(request, 'game/players.html', {'novy': novy, 'stari': stari})
 
 
 # --- random code XD --- lol should be secured, but whatever...
