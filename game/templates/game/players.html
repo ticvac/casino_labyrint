@@ -2,14 +2,32 @@
 
 
 {% block content %}
+{% load static %}
+
 <h1>Nový</h1>
 {% for u in novy %}
     <p style="padding-left: 1em;">{{ u.username }} - {{ u.total_money }}</p>
+    {% for a in u.achievements.all %}
+        <img class="achievement-icon" src="{% static 'game/images/' %}{{ a.image_name }}" alt="achievement" data-text="{{ a.text }}">
+    {% endfor %}
 {% endfor %}
 
 
 <h1>Starší 12h</h1>
 {% for u in stari %}
     <p style="padding-left: 1em;">{{ u.username }} - {{ u.total_money }}</p>
+    {% for a in u.achievements.all %}
+        <img class="achievement-icon" src="{% static 'game/images/' %}{{ a.image_name }}" alt="achievement" data-text="{{ a.text }}">
+    {% endfor %}
 {% endfor %}
+
+<style>
+    .achievement-icon {
+        width: 32px;
+        height: 32px;
+        margin-right: 0.5em;
+        cursor: pointer;
+    }
+</style>
+
 {% endblock %}
