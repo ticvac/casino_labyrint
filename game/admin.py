@@ -7,3 +7,4 @@ admin.site.register(PointVisit)
 admin.site.register(Transaction)
 admin.site.register(Game)
 admin.site.register(ReachedZero)  # hot fix
+admin.site.register(Achievement)

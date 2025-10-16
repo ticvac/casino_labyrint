@@ -50,6 +50,7 @@ class PointVisit(models.Model):
     class Type(models.IntegerChoices):
         SUCCESS = 1, 'Success'
         BROKE_RULE = 2, 'Broke Rule'
+        ACHIEVEMENT = 3, 'Achievement'
 
     point = models.ForeignKey(GraphPoint, on_delete=models.CASCADE, related_name='visits')
     visit_time = models.DateTimeField(auto_now_add=True)
@@ -86,4 +87,13 @@ class ReachedZero(models.Model):
         return f"{self.user.username} reached zero at {self.time}"
 
 
-# 
+# random ass Achievementy
+class Achievement(models.Model):
+    trigger_point = models.ForeignKey(GraphPoint, on_delete=models.CASCADE, related_name='achievements')
+    from_point = models.ForeignKey(GraphPoint, null=True, blank=True, on_delete=models.CASCADE, related_name='from_edges')
+    text = models.TextField()
+    users = models.ManyToManyField(User, related_name='achievements', blank=True)
+    image_name = models.CharField(max_length=255, blank=True)
+
+    def __str__(self):
+        return f"For {self.trigger_point.identifier}: {self.text}"

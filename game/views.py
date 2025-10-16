@@ -139,6 +139,24 @@ def visit_point(request, point_id):
     # Create a transaction record
     Transaction.objects.create(user=user, amount=value, visit=visit, balance_after=balance_after)
 
+    # Achievements
+    point_achievements = point.achievements.all()
+    for ach in point_achievements:
+        # check if user already has it
+        if user.achievements.filter(id=ach.id).exists():
+            continue
+        # condition check
+        if (previous_visit.point != ach.from_point) and ach.from_point is not None:
+            continue
+        # pridani achievementu
+        ach.users.add(user)
+        PointVisit.objects.create(
+            point=point,
+            user=user,
+            type=PointVisit.Type.ACHIEVEMENT,
+            message=f"Získal jsi achievement: {ach.text}"
+        )
+
     return redirect('index')
 
 

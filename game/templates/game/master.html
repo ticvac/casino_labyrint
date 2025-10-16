@@ -20,7 +20,7 @@
                     <div class="name">{{ visit.point.default_name }}</div>
                     <div class="time">{{ visit.visit_time|date:"H:i:s (d.m)" }}</div>
                 </div>
-                <div class="message {% if visit.type == 2 %}broke-rule{% endif %}">
+                <div class="message {% if visit.type == 2 %}broke-rule{% endif %} {% if visit.type == 3 %}achievement{% endif %}">
                     {{ visit.message|safe }}
                 </div>
                 {% if visit.type == 1 %}
