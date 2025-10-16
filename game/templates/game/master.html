@@ -7,12 +7,18 @@
     <link rel="stylesheet" href="{% static 'game/css/master.css' %}">
 
     {% block extra_head %}
+    <script src="{% static 'game/js/achievements_click.js' %}" defer></script>
     {% endblock %}
 </head>
 <body>
     {% block content %}
     <!-- Content will be injected here -->
     <h1>Casino Labyrint - {{ balance }}</h1>
+    <div class="achievements">
+        {% for a in user.achievements.all %}
+            <img class="achievement-icon" src="{% static 'game/images/' %}{{ a.image_name }}" alt="achievement" data-text="{{ a.text }}">
+        {% endfor %}
+    </div>
     <div class="visits">
         {% for visit in visits %}
             <div class="visit">
