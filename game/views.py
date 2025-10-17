@@ -174,9 +174,12 @@ def players(request):
     stari = User.objects.filter(date_joined__lt=timezone.now()-timezone.timedelta(hours=12))
     for n in novy:
         n.total_money = Transaction.objects.filter(user=n).first().balance_after if Transaction.objects.filter(user=n).exists() else 0
+        n.visited_unique_points = PointVisit.objects.filter(user=n, type=PointVisit.Type.SUCCESS).values('point').distinct().count()
     for s in stari:
         s.total_money = Transaction.objects.filter(user=s).first().balance_after if Transaction.objects.filter(user=s).exists() else 0
-    return TemplateResponse(request, 'game/players.html', {'novy': novy, 'stari': stari})
+        s.visited_unique_points = PointVisit.objects.filter(user=s, type=PointVisit.Type.SUCCESS).values('point').distinct().count()
+    total_points = GraphPoint.objects.count()
+    return TemplateResponse(request, 'game/players.html', {'novy': novy, 'stari': stari, 'total_points': total_points})
 
 
 # --- random code XD --- lol should be secured, but whatever...

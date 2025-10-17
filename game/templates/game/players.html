@@ -6,7 +6,7 @@
 
 <h1>Nový</h1>
 {% for u in novy %}
-    <p style="padding-left: 1em;">{{ u.username }} - {{ u.total_money }}</p>
+    <p style="padding-left: 1em;">{{ u.username }} {{ u.visited_unique_points }}/{{ total_points }} - {{ u.total_money }}</p>
     {% for a in u.achievements.all %}
         <img class="achievement-icon" src="{% static 'game/images/' %}{{ a.image_name }}" alt="achievement" data-text="{{ a.text }}">
     {% endfor %}
@@ -15,7 +15,7 @@
 
 <h1>Starší 12h</h1>
 {% for u in stari %}
-    <p style="padding-left: 1em;">{{ u.username }} - {{ u.total_money }}</p>
+    <p style="padding-left: 1em;">{{ u.username }} {{ u.visited_unique_points }}/{{ total_points }} - {{ u.total_money }}</p>
     {% for a in u.achievements.all %}
         <img class="achievement-icon" src="{% static 'game/images/' %}{{ a.image_name }}" alt="achievement" data-text="{{ a.text }}">
     {% endfor %}
